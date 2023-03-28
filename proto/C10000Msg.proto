@@ -1,0 +1,15 @@
+// 心跳 登录
+package Platform.ModelC10000;
+option java_package = "com.cp.im.proto.c10000msg";
+option java_outer_classname = "C10000";
+
+// 登录
+message C100001c2s {
+    required int32 identity = 1;// 用户身份 【0 普通用户 1 客服用户】
+    required string deviceId = 2; // 设备唯一标识
+    required string token = 3; // 令牌
+}
+message C100001s2c {
+    required int32 errCode = 1; // 返回结果 0_成功 1_失败
+    optional string errMsg = 2; // 错误信息 errCode > 0
+}

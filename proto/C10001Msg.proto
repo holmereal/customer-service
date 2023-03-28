@@ -1,0 +1,21 @@
+// 消息提醒 消息号 10001
+package Platform.ModelC10001;
+option java_package = "com.cp.im.proto.c10001msg";
+option java_outer_classname = "C10001";
+
+// 软件提醒 1
+message C100011s2c {
+    required int32 noticeType = 1; // 通知类型 0_系统 1_个人
+    required string title = 2; // 通知标题 
+    required string content = 3; // 通知内容 
+}
+
+// 聊天提醒 2
+message C100012s2c {
+    required string alias = 1; // 聊天别称
+    repeated string thumbIconURL = 2; // 聊天图标
+    required int32 sort = 3; // 聊天分类 1_单聊 2_群聊
+    required int64 attachId = 4; // 附属id = 好友ID/群聊ID
+    optional string message = 5; // 消息内容
+    required int32 messageType = 6; // 消息类型 0_文本 1_Emoji 2_图片 3_语音 4_视频
+}

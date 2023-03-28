@@ -1,0 +1,123 @@
+package Platform.ModelC10002;
+option java_package = "com.cp.im.proto.c10002msg";
+option java_outer_classname = "C10002";
+
+// 用户信息字段.单聊&群聊
+message ESUserInfo {
+  required int64 userId = 1; // 用户ID
+  required string mobile = 2; // 用户账号
+  required string alias = 3; // 用户别称
+  required string iconURL = 4; // 用户头像
+}
+
+// 表情信息字段.单聊&群聊 messageType-1
+message ESEmojiInfo {
+  required string emName = 1; // 表情名称
+  required string animURL = 2; // 表情动图
+}
+
+// 图片信息字段.单聊&群聊 messageType-2
+message ESImageInfo {
+  required int32 width = 1; // 图片宽度
+  required int32 height = 2; // 图片高度
+  optional bytes imageFile = 3; // 图片文件
+  optional string imageExt = 4; // 文件格式 
+  optional string imageURL = 5; // 图片原图访问地址 
+  optional string litimg = 6; // 图片缩略图访问地址 
+}
+
+// 语音信息字段.单聊&群聊 messageType-3
+message ESVoiceInfo {
+  required int32 duration = 1; // 持续时间
+  optional bytes voiceFile = 2; // 语音文件
+  optional string voiceExt = 3; // 文件格式
+  optional string voiceURL = 4; // 语音访问地址 
+}
+
+// 视频信息字段.单聊&群聊 messageType-4
+message ESVideoInfo {
+  required int32 width = 1; // 视频宽度
+  required int32 height = 2; // 视频高度 
+  required int32 duration = 3; // 持续时间
+  optional bytes videoFile = 4; // 视频文件 
+  optional string videoExt = 5; // 文件格式 
+  optional bytes coverFile = 6; // 封面文件 
+  optional string coverExt = 7; // 文件格式
+  optional string videoURL = 8; // 访问地址 
+  optional string coverURL = 9; // 封面访问地址 
+}
+
+
+// 进入聊天 子消息号child 0
+message C100020c2s {
+  required int32 sort = 1; // 聊天分类 1_单聊 2_群聊
+  optional int64 targetId = 2; // 目标id
+  optional int64 groupId = 3; // 群聊id
+}
+message C100020s2c {
+  required int32 errCode = 1; // 返回结果 0_成功 1_失败
+  repeated ESUserInfo userInfo = 2; // 用户信息
+  optional string errMsg = 3; // 错误信息 result > 0
+}
+
+// 发送消息 子消息号child 1
+message C100021c2s {
+  required int32 sort = 1; // 聊天分类 1_单聊 2_群聊
+  optional int64 targetId = 2; // 目标id
+  optional int64 groupId = 3; // 群聊id
+  required int32 messageType = 4; // 消息类型 单聊 0_文本 1_Emoji 2_图片 3_语音 4_视频
+  optional string message = 5; // 消息内容
+  required string messageId = 6; // 消息的唯一标识符
+  optional ESImageInfo imageInfo = 7; // 图片信息字段
+  optional ESVoiceInfo voiceInfo = 8; // 语音信息字段
+  optional ESVideoInfo videoInfo = 9; // 视频信息字段
+  optional ESEmojiInfo emojiInfo = 10; // 表情信息字段 
+}
+message C100021s2c {
+  required int32 errCode = 1; // 返回结果 0_成功 1_失败 2_关闭页面
+  required int64 recordId = 2; // 记录id 
+  required string messageId = 3; //消息的唯一标识符
+  required int64 targetId = 4; // 目标id
+  optional string errMsg = 5; // 错误信息 errCode > 0
+}
+
+// 接收消息 子消息号child 2 
+message C100022s2c {
+  required int32 sort = 1; // 聊天分类 1_单聊 2_群聊
+  required int64 recordId = 2; // 记录id 
+  optional int64 groupId = 3; // 群聊id
+  required int64 userId = 4; // 用户id
+  optional string message = 5; // 信息内容
+  required string messageId = 6; // 消息的唯一标识符
+  optional int32 messageSort = 7; // 消息分类 0_聊天信息 1_提示信息
+  required int32 messageType = 8; // 消息类型 单聊 0_文本 1_Emoji 2_图片 3_语音 4_视频
+  optional ESImageInfo imageInfo = 9; // 图片信息字段
+  optional ESVoiceInfo voiceInfo = 10; // 语音信息字段
+  optional ESVideoInfo videoInfo = 11; // 视频信息字段
+  optional ESEmojiInfo emojiInfo = 12; // 表情信息字段
+  required int32 isAction = 13; // 是否操作·标记语音 0_未听 1_已听
+  required string createTime = 14; // 创建时间
+}
+
+// 离开聊天 子消息号child 3
+message C100023c2s {
+  required int32 sort = 1; // 聊天分类 1_单聊 2_群聊
+  optional int64 targetId = 2; // 目标id
+  optional int64 groupId = 3; // 群聊id
+}
+
+// 聆听语音 子消息号child 4
+message C100024c2s {
+  required int32 sort = 1; // 聊天分类 1_单聊 2_群聊
+  optional int64 targetId = 2; // 目标id
+  optional int64 groupId = 3; // 群聊id
+  required int64 recordId = 4; // 记录id
+}
+
+// 屏蔽消息 子消息号child 5
+message C100025s2c {
+  required int32 sort = 1; // 聊天分类 1_单聊 2_群聊
+  optional int64 targetId = 2; // 目标id
+  optional int64 groupId = 3; // 群聊id
+  required int64 recordId = 4; // 记录id
+}
