@@ -3,6 +3,20 @@ import axios from 'axios'
 import { baseURL } from './url'
 axios.defaults.baseURL = baseURL
 axios.defaults.headers.post['Content-Type'] = 'application/json;charset=UTF-8'
+axios.defaults.headers.post['userId'] = localStorage.getItem('userId')
+axios.defaults.headers.get['userId'] = localStorage.getItem('userId')
+axios.defaults.headers.post['platform'] = 'web'
+axios.defaults.headers.get['platform'] = 'web'
+
+// 添加请求拦截器
+axios.interceptors.request.use(function (config) {
+  axios.defaults.headers.get['userId'] = localStorage.getItem('userId')
+  axios.defaults.headers.post['userId'] = localStorage.getItem('userId')
+  return config;
+}),
+function (error) {
+	return Promise.reject(error);
+}
 
 //客服登录  /chat/login
 export function login(account,password){
@@ -126,6 +140,16 @@ export function deleteqa(id){
 	const url = baseURL + '/qa/delete?id=' + id
 	
 	return axios.get(url).then((res)=>{
+		return Promise.resolve(res)
+	})
+}
+
+//文件上传 files/uploadFile
+export function uploadFile(file,h,w){
+	const url = baseURL + '/files/uploadFile'
+	let data = {file:file,h:h,w:w}
+	
+	return axios.post(url,data).then((res)=>{
 		return Promise.resolve(res)
 	})
 }

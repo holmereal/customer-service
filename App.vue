@@ -49,4 +49,8 @@
 	  max-width: 200px !important;
 	  min-height: 60px;
 	}
+	canvas{
+		width: 50px !important;
+		height: 50px !important;
+	}
 </style>

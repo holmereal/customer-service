@@ -155,17 +155,18 @@
 									<p v-else>{{CurrentUserInfo.mobile}}</p>
 									<span>{{item.ETime}}</span>
 								</view>
-								<view class="text">
+								<view class="text" :class="item.messageType == 0? '':'emojiImage'">
 									<p v-if="item.messageType == 0">{{item.message}}</p>
-									<img v-if="item.messageType == 1 && item.emojiInfo" :src="item.emojiInfo.animURL" alt="">
+									<!-- <img v-if="item.messageType == 1 && item.emojiInfo" :src="item.emojiInfo.animURL" alt=""> -->
+									<svga v-if="item.messageType == 1 && item.emojiInfo" id="canvas1" :src="item.emojiInfo.animURL" />
 									<img class='imageInfo' v-if="item.messageType == 2 && item.imageInfo" :src="item.imageInfo.imageURL" alt="">
 								</view>
 							</view>
 							
 							<view class="message_RightClick" v-if="RightClickShow" id="RightClick">
-								<!-- <view class="RightClick_translate cell">
+								<view class="RightClick_translate cell" v-if="RightClick_me.userId != userId" @click="MessageTranslate()">
 									<span>翻译</span>
-								</view> -->
+								</view>
 								<view class="RightClick_retract cell" v-if="RightClick_me.userId == userId" @click="withdrawText()">
 									<span>撤回</span>
 								</view>
@@ -178,7 +179,7 @@
 					<view class="chat_inputbox">
 						<view class="emoji">
 							<view class="emojiTop">
-								<image src="../../static/emoji-icon.png" mode="aspectFill" @click="emojiListShow = !emojiListShow"></image>
+								<image src="../../static/emoji-icon.png" v-click-Emoji="closeEmojiList" mode="aspectFill" @click="emojiListShow = !emojiListShow"></image>
 								<van-uploader :after-read="afterRead">
 									<image src="../../static/wenjian-icon.png" mode="aspectFill"></image>
 								</van-uploader>
@@ -193,7 +194,7 @@
 							<!-- <view class="inputbox_body" contenteditable="true" v-model="message">
 								
 							</view> -->
-							<textarea name="" id="" cols="30" rows="10" maxlength="50" class="inputbox_body" v-model="message" placeholder="输入消息……"></textarea>
+							<textarea name="" id="" cols="30" rows="10" maxlength="50" class="inputbox_body" @keyup.enter.exact="submit" @keydown.enter.exact="handleKeydown" v-model="message" placeholder="输入消息……"></textarea>
 						</view>
 						<view class="enter">
 							<view class="translate" @click="TextTranslate()">
@@ -244,7 +245,7 @@
 					<view class="addwords_btn_quit" @click="wordsShow = false">
 						<span>退出</span>
 					</view>
-					<view class="addwords_btn_sure" @click="addPhrases()">
+					<view class="addwords_btn_sure" :class="addwords_not? 'notclick':''" @click="addPhrases()">
 						<span>确定</span>
 					</view>
 				</view>
@@ -290,7 +291,7 @@
 					<view class="addwords_btn_quit" @click="RemarkShow = false">
 						<span>退出</span>
 					</view>
-					<view class="addwords_btn_sure" @click="RemarksModified">
+					<view class="addwords_btn_sure" :class="Remark_not? 'notclick':''" @click="RemarksModified">
 						<span>确定</span>
 					</view>
 				</view>
@@ -303,9 +304,11 @@
 	import protoRoot0 from '@/proto/C10000Msg.js'
 	import protoRoot1 from '@/proto/C10001Msg.js'
 	import protoRoot2 from '@/proto/C10002Msg.js'
+	import axios from 'axios'
+	import { baseURL } from '../../api/url.js'
 	import { Notify } from 'vant';
 	import Clipboard from 'clipboard'
-	import { list,user,getChatMessage,getemoticon,getqa,insertqa,deleteqa,updateChatSetting,translateText,shieldChatMessage,getdivide } from '../../api/http.js'
+	import { list,user,getChatMessage,getemoticon,getqa,insertqa,deleteqa,updateChatSetting,translateText,shieldChatMessage,getdivide,uploadFile } from '../../api/http.js'
 	export default {
 		data() {
 			return {
@@ -347,10 +350,14 @@
 				updateChatList: '',			//右键菜单消息内容
 				
 				wsUrl: '://cc.365-farm.com/visit', // ws地址
+				// wsUrl: '://192.168.2.121:8899/visit',
 				websock: null, // ws实例
 				timeoutObj:undefined,
 				serverTimeoutObj:undefined,
 				lockReconnect: false,
+				
+				addwords_not: false,
+				Remark_not: false
 			}
 		},
 		onLoad() {
@@ -416,6 +423,21 @@
 			  unbind: function(el) {
 			  	document.body.removeEventListener('click', el.clickOutsideEvent);
 			  },
+		  },
+		  'click-Emoji': {
+			bind: function(el, binding, vnode) {
+				el.clickOutsideEvent = function(event) {
+					// 判断是否点击了 el 元素外部
+					if (!(el === event.target || el.contains(event.target))) {
+					  // 触发绑定的回调函数
+					  vnode.context[binding.expression]();
+					}
+				};
+				document.body.addEventListener('click', el.clickOutsideEvent);
+			},
+			unbind: function(el) {
+				document.body.removeEventListener('click', el.clickOutsideEvent);
+			},
 		  }
 		},
 		methods: {
@@ -427,6 +449,9 @@
 			},
 			closeRightClick(){
 				this.RightClickShow = false;
+			},
+			closeEmojiList(){
+				this.emojiListShow = false;
 			},
 			ChatUserTab(i){
 				this.userTabNum = i
@@ -514,6 +539,12 @@
 												recordId: testdata.recordId,
 												userId: this.userId
 											}
+											
+											this.chatList.forEach((res,i) =>{
+												if(res.targetId == testdata.targetId){
+													res.message = obj.message
+												}
+											})
 										}else if(this.messageType == 1){
 											var obj = {
 												createTimestamp: (new Date().getTime() / 1000),
@@ -527,6 +558,12 @@
 													animURL: this.EmojiUrl
 												}
 											}
+											
+											this.chatList.forEach((res,i) =>{
+												if(res.targetId == testdata.targetId){
+													res.message = '[Emoji]'
+												}
+											})
 										}else if(this.messageType == 2){
 											var obj = {
 												createTimestamp: (new Date().getTime() / 1000),
@@ -542,13 +579,14 @@
 													imageURL: this.imgUrl
 												}
 											}
+											
+											this.chatList.forEach((res,i) =>{
+												if(res.targetId == testdata.targetId){
+													res.message = '[Picture]'
+												}
+											})
 										}
 										
-										this.chatList.forEach((res,i) =>{
-											if(res.targetId == testdata.targetId){
-												res.message = obj.message
-											}
-										})
 										this.ChatMessageList.push(obj)
 										this.ChatMessageList.forEach(res =>{
 											var Time = new Date(res.createTimestamp * 1000)
@@ -593,6 +631,12 @@
 											recordId: testdata.recordId,
 											userId: testdata.userId
 										}
+									
+										this.chatList.forEach((res,i) =>{
+											if(res.targetId == obj.userId){
+												res.message = obj.message
+											}
+										})
 									}else if(testdata.messageType == 1){
 										var obj = {
 											sort: testdata.sort,
@@ -608,6 +652,12 @@
 												animURL: testdata.emojiInfo.animURL
 											}
 										}
+										
+										this.chatList.forEach((res,i) =>{
+											if(res.targetId == obj.userId){
+												res.message = '[Emoji]'
+											}
+										})
 									}else if(testdata.messageType == 2){
 										var obj = {
 											sort: testdata.sort,
@@ -624,13 +674,14 @@
 												imageURL: testdata.imageInfo.imageURL
 											}
 										}
+										
+										this.chatList.forEach((res,i) =>{
+											if(res.targetId == obj.userId){
+												res.message = '[Picture]'
+											}
+										})
 									}
 									
-									this.chatList.forEach((res,i) =>{
-										if(res.targetId == obj.userId){
-											res.message = obj.message
-										}
-									})
 									this.ChatMessageList.push(obj)
 									this.ChatMessageList.forEach(res =>{
 										var Time = new Date(res.createTimestamp * 1000)
@@ -973,6 +1024,13 @@
 				
 				this.websocketsend(messageCode)
 			},
+			submit() {
+			    this.SendMessages()
+			},
+			handleKeydown(event) {
+			    event.preventDefault();
+			    return false;
+			},
 			SendMessages(){
 				var channel = this.getInt32Bytes(10002)
 				var child = this.getInt16Bytes(1)
@@ -1027,13 +1085,17 @@
 				if(/^\s*$/.test(this.Phrases)){
 					Notify({ type: 'danger', message: '常用语不能为空', className: 'MsgClass' });
 				}else{
+					this.addwords_not = true
 					insertqa(this.Phrases).then(res =>{
 						if(res.data.code == 0){
 							this.wordsShow = false
 							this.getPhrases()
 							this.Phrases = ''
+							
+							this.addwords_not = false
 						}else{
 							Notify({ type: 'danger', message: res.data.msg, className: 'MsgClass' });
+							this.addwords_not = false
 						}
 					})
 				}
@@ -1064,7 +1126,7 @@
 				userId = Array.from(userId)
 				attachId = Array.from(attachId)
 				
-				this.EmojiUrl = e.emUrl
+				this.EmojiUrl = e.dongUrl
 				let time = new Date().getTime()
 				//protobuf转码
 				let actions = {
@@ -1076,7 +1138,7 @@
 					messageType: this.messageType = 1,
 					emojiInfo: {
 						emName: e.emName,
-						animURL: e.emUrl
+						animURL: e.dongUrl
 					}
 				}
 				let testobj = protoRoot2.lookup("C100021c2s").create(actions);
@@ -1093,16 +1155,23 @@
 			},
 			afterRead(file) {
 				const that = this
-				var str = this.dataURItoBlob(file.content)
+				console.log(file.file)
+				// var str = this.dataURItoBlob(file.content)
 				
-				if(['png','jpeg','jpg'].includes(str.type.split('/')[1])){
-					var reader = new FileReader();
-					let imgResult = ''
-					reader.readAsArrayBuffer(str);
-					
-					reader.onload = function() {
-						imgResult = new Uint8Array((reader.result))
-						console.log(imgResult)
+				const formData = new FormData()
+				formData.append('file', file.file)
+				let imgUrl = baseURL + '/files/uploadFile'
+				console.log(formData.get('file'));
+				let config = {
+					headers: {
+						"Content-Type": "multipart/form-data",
+						//因为我的请求内容只有file，如果formdata复杂的话，建议参考上面的链接
+						// transformRequest: [file => file]
+					}
+				};
+				axios.post(imgUrl, formData, config).then((res) => {
+					if(res.data.code == 0){
+						console.log(res)
 						
 						var channel = that.getInt32Bytes(10002)
 						var child = that.getInt16Bytes(1)
@@ -1126,25 +1195,78 @@
 							imageInfo: {
 								width: 100,
 								height: 100,
-								imageFile: imgResult,
-								imageExt: str.type.split('/')[1]
+								imageURL: (res.data.data.id).toString(),
+								imageExt: 'net'
 							}
 						}
 						let testobj = protoRoot2.lookup("C100021c2s").create(actions);
 						console.log("testobj:", testobj);
 						let testObjBuffer = protoRoot2.lookup("C100021c2s").encode(testobj).finish(); //encode数据
-						console.log("testObjBuffer:", testObjBuffer);
 						testObjBuffer = Array.from(testObjBuffer)
+						console.log("testObjBuffer:", testObjBuffer);
 						
 						var messageCode = []
-						messageCode.push(...channel,...child,...userId,...attachId,...testObjBuffer)
+						messageCode = channel.concat(child,userId,attachId,testObjBuffer);
 						messageCode = new Uint8Array(messageCode)
+						console.log(messageCode)
 						
 						that.websocketsend(messageCode)
+					}else{
+						Notify({ type: 'danger', message: res.data.msg, className: 'MsgClass' });
 					}
-				}else{
-					Notify({ type: 'danger', message: 'The upload format is incorrect!', className: 'MsgClass' });
-				}
+				})
+				
+				// if(['png','jpeg','jpg'].includes(str.type.split('/')[1])){
+				// 	var reader = new FileReader();
+				// 	let imgResult = ''
+				// 	reader.readAsArrayBuffer(str);
+					
+				// 	reader.onload = function() {
+				// 		imgResult = new Uint8Array((reader.result))
+				// 		console.log(imgResult)
+						
+				// 		var channel = that.getInt32Bytes(10002)
+				// 		var child = that.getInt16Bytes(1)
+				// 		var userId = that.longToByteArray(that.userId)
+				// 		var attachId = that.longToByteArray(0)
+				// 		channel = Array.from(channel)
+				// 		child = Array.from(child)
+				// 		userId = Array.from(userId)
+				// 		attachId = Array.from(attachId)
+						
+				// 		that.imgUrl = file.content
+				// 		let time = new Date().getTime()
+				// 		//protobuf转码
+				// 		let actions = {
+				// 			sort: 1,
+				// 			targetId: that.CurrentUserInfo.userId,
+				// 			groupId: that.groupId,
+				// 			message: that.message,
+				// 			messageId: time + that.userId,
+				// 			messageType: that.messageType = 2,
+				// 			imageInfo: {
+				// 				width: 100,
+				// 				height: 100,
+				// 				imageURL: imgResult,
+				// 				imageExt: net
+				// 			}
+				// 		}
+				// 		let testobj = protoRoot2.lookup("C100021c2s").create(actions);
+				// 		console.log("testobj:", testobj);
+				// 		let testObjBuffer = protoRoot2.lookup("C100021c2s").encode(testobj).finish(); //encode数据
+				// 		testObjBuffer = Array.from(testObjBuffer)
+				// 		console.log("testObjBuffer:", testObjBuffer);
+						
+				// 		var messageCode = []
+				// 		messageCode = channel.concat(child,userId,attachId,testObjBuffer);
+				// 		messageCode = new Uint8Array(messageCode)
+				// 		console.log(messageCode)
+						
+				// 		that.websocketsend(messageCode)
+				// 	}
+				// }else{
+				// 	Notify({ type: 'danger', message: 'The upload format is incorrect!', className: 'MsgClass' });
+				// }
 			},
 			dataURItoBlob(base64Data) {
 			    //console.log(base64Data);//data:image/png;base64,
@@ -1155,7 +1277,7 @@
 			        byteString = unescape(base64Data.split(',')[1]);
 			    }
 			    var mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];//mime类型 -- image/png
-			
+				
 			    // var arrayBuffer = new ArrayBuffer(byteString.length); //创建缓冲数组
 			    // var ia = new Uint8Array(arrayBuffer);//创建视图
 			    var ia = new Uint8Array(byteString.length);//创建视图
@@ -1229,6 +1351,23 @@
 						const selectionBox = document.getElementById('RightClick');
 						selectionBox.style.top = `${event.clientY}px`;
 						selectionBox.style.left = `${event.clientX}px`;
+					}
+				})
+			},
+			MessageTranslate(){
+				//翻译
+				var sourceLang = 'en'
+				var targetLang = 'zh_cn'
+				translateText(this.RightClick_me.message,sourceLang,targetLang).then(res =>{
+					if(res.data.code == 0){
+						this.ChatMessageList.forEach((e,index) =>{
+							if(e.messageId == this.RightClick_me.messageId){
+								console.log(index)
+								this.$set(e,'message',res.data.data)
+							}
+						})
+					}else{
+						Notify({ type: 'danger', message: res.data.msg, className: 'MsgClass' });
 					}
 				})
 			},
@@ -1323,12 +1462,15 @@
 				let obj = {
 					alias: this.RemarkName
 				}
+				this.Remark_not = true
 				updateChatSetting(this.userId,this.updateChatList.targetId,obj).then(res =>{
 					if(res.data.code == 0){
 						this.RemarkShow = false
+						this.Remark_not = false
 						this.getChatList()
 						this.getChatUserList()
 					}else{
+						this.Remark_not = false
 						Notify({ type: 'danger', message: res.data.msg, className: 'MsgClass' });
 					}
 				})
@@ -1376,6 +1518,10 @@
 </script>
 
 <style lang="scss">
+	#canvas,#canvas1{
+		width: 100px !important;
+		height: 100px !important;
+	}
 	.content {
 		display: flex;
 		background-color: #F7F7F7;
@@ -1913,11 +2059,20 @@
 										color: #333333;
 										line-height: 24px;
 									}
+									img{
+										max-width: 100px;
+										width: 100%;
+										max-height: 100px;
+									}
 									.imageInfo{
 										max-width: 200px;
 										width: 100%;
 										max-height: 200px;
 									}
+								}
+								.emojiImage{
+									background: transparent;
+									padding: 0;
 								}
 							}
 							.myself{
@@ -1931,6 +2086,10 @@
 									p{
 										color: #FFFFFF;
 									}
+								}
+								.emojiImage{
+									background: transparent;
+									padding: 0;
 								}
 							}
 							.message_RightClick{
@@ -1994,10 +2153,13 @@
 								flex-wrap: wrap;
 								.cell{
 									cursor: pointer;
+									width: 50px;
+									height: 50px;
 									image{
 										display: block;
 										width: 50px;
 										height: 50px;
+										margin-left: 0;
 									}
 								}
 							}
@@ -2272,6 +2434,9 @@
 					font-weight: 500;
 					color: #0FFFFF;
 				}
+			}
+			.notclick{
+				pointer-events: none;
 			}
 		}
 	}

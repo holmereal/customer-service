@@ -4,7 +4,7 @@
 import sha1 from 'sha1'
 import axios from 'axios'
 
-//http://192.168.2.125:7020  http://47.243.27.236:8083  https://c.365-farm.com
+//http://192.168.2.121:7020  https://c.365-farm.com
 export const baseURL = 'https://c.365-farm.com'
 
 

@@ -9,6 +9,7 @@ import { Popup } from 'vant';
 import { Uploader } from 'vant';
 import { List } from 'vant';
 import { Loading } from 'vant';
+import svga from 'vue-svga'
 
 import 'vant/lib/index.less';
 Vue.config.productionTip = false
@@ -21,6 +22,7 @@ Vue.use(Popup);
 Vue.use(Uploader);
 Vue.use(List);
 Vue.use(Loading);
+Vue.use(svga)
 App.mpType = 'app'
 const app = new Vue({
     ...App
