@@ -11,6 +11,10 @@ import { List } from 'vant';
 import { Loading } from 'vant';
 import svga from 'vue-svga'
 
+import preview from 'vue-photo-preview'
+import 'vue-photo-preview/dist/skin.css'
+Vue.use(preview)
+
 import 'vant/lib/index.less';
 Vue.config.productionTip = false
 Vue.prototype.$md5 = md5;

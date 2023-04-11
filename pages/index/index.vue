@@ -159,7 +159,7 @@
 									<p v-if="item.messageType == 0">{{item.message}}</p>
 									<!-- <img v-if="item.messageType == 1 && item.emojiInfo" :src="item.emojiInfo.animURL" alt=""> -->
 									<svga v-if="item.messageType == 1 && item.emojiInfo" id="canvas1" :src="item.emojiInfo.animURL" />
-									<img class='imageInfo' v-if="item.messageType == 2 && item.imageInfo" :src="item.imageInfo.imageURL" alt="">
+									<img class='imageInfo' :preview="targetId" v-if="item.messageType == 2 && item.imageInfo" :src="item.imageInfo.imageURL" alt="">
 								</view>
 							</view>
 							
@@ -194,7 +194,7 @@
 							<!-- <view class="inputbox_body" contenteditable="true" v-model="message">
 								
 							</view> -->
-							<textarea name="" id="" cols="30" rows="10" maxlength="50" class="inputbox_body" @keyup.enter.exact="submit" @keydown.enter.exact="handleKeydown" v-model="message" placeholder="输入消息……"></textarea>
+							<textarea name="" id="" cols="30" rows="10" maxlength="50" id="drop_area" class="inputbox_body" @keyup.enter.exact="submit" @keydown.enter.exact="handleKeydown" v-model="message" placeholder="输入消息……"></textarea>
 						</view>
 						<view class="enter">
 							<view class="translate" @click="TextTranslate()">
@@ -357,7 +357,7 @@
 				lockReconnect: false,
 				
 				addwords_not: false,
-				Remark_not: false
+				Remark_not: false,
 			}
 		},
 		onLoad() {
@@ -367,6 +367,9 @@
 			this.initWebSocket()
 		},
 		onShow() {
+			
+		},
+		updated() {
 			
 		},
 		watch: {
@@ -981,6 +984,8 @@
 							}
 						})
 						
+						this.$previewRefresh()
+						
 						this.ChatMessageList.forEach(res =>{
 							var Time = new Date(res.createTimestamp * 1000)
 							var year = Time.getFullYear()
@@ -1182,7 +1187,7 @@
 						userId = Array.from(userId)
 						attachId = Array.from(attachId)
 						
-						that.imgUrl = file.content
+						that.imgUrl = res.data.data.picUrl
 						let time = new Date().getTime()
 						//protobuf转码
 						let actions = {
@@ -1193,8 +1198,6 @@
 							messageId: time + that.userId,
 							messageType: that.messageType = 2,
 							imageInfo: {
-								width: 100,
-								height: 100,
 								imageURL: (res.data.data.id).toString(),
 								imageExt: 'net'
 							}
@@ -1474,6 +1477,67 @@
 						Notify({ type: 'danger', message: res.data.msg, className: 'MsgClass' });
 					}
 				})
+			},
+			dropEvent(e) {
+				const that = this
+			    const file = e.dataTransfer.files[0];
+				console.log(file)
+			    e.preventDefault();
+			    const formData = new FormData()
+			    formData.append('file', file)
+			    let imgUrl = baseURL + '/files/uploadFile'
+			    console.log(formData.get('file'));
+			    let config = {
+			    	headers: {
+			    		"Content-Type": "multipart/form-data",
+			    		//因为我的请求内容只有file，如果formdata复杂的话，建议参考上面的链接
+			    		// transformRequest: [file => file]
+			    	}
+			    };
+			    axios.post(imgUrl, formData, config).then((res) => {
+			    	if(res.data.code == 0){
+			    		console.log(res)
+			    		
+			    		var channel = that.getInt32Bytes(10002)
+			    		var child = that.getInt16Bytes(1)
+			    		var userId = that.longToByteArray(that.userId)
+			    		var attachId = that.longToByteArray(0)
+			    		channel = Array.from(channel)
+			    		child = Array.from(child)
+			    		userId = Array.from(userId)
+			    		attachId = Array.from(attachId)
+			    		
+			    		that.imgUrl = res.data.data.picUrl
+			    		let time = new Date().getTime()
+			    		//protobuf转码
+			    		let actions = {
+			    			sort: 1,
+			    			targetId: that.CurrentUserInfo.userId,
+			    			groupId: that.groupId,
+			    			message: that.message,
+			    			messageId: time + that.userId,
+			    			messageType: that.messageType = 2,
+			    			imageInfo: {
+			    				imageURL: (res.data.data.id).toString(),
+			    				imageExt: 'net'
+			    			}
+			    		}
+			    		let testobj = protoRoot2.lookup("C100021c2s").create(actions);
+			    		console.log("testobj:", testobj);
+			    		let testObjBuffer = protoRoot2.lookup("C100021c2s").encode(testobj).finish(); //encode数据
+			    		testObjBuffer = Array.from(testObjBuffer)
+			    		console.log("testObjBuffer:", testObjBuffer);
+			    		
+			    		var messageCode = []
+			    		messageCode = channel.concat(child,userId,attachId,testObjBuffer);
+			    		messageCode = new Uint8Array(messageCode)
+			    		console.log(messageCode)
+			    		
+			    		that.websocketsend(messageCode)
+			    	}else{
+			    		Notify({ type: 'danger', message: res.data.msg, className: 'MsgClass' });
+			    	}
+			    })
 			}
 		},
 		mounted() {
@@ -1483,6 +1547,21 @@
 				//设置滚动条到最底部
 				ele.scrollTop = ele.scrollHeight;
 			}
+			
+			let dropArea = document.getElementById('drop_area');
+			dropArea.addEventListener("drop", this.dropEvent, false);
+			dropArea.addEventListener("dragleave", (e) => {
+			    e.preventDefault();
+			    // this.dropActive = false;
+			}, false);
+			dropArea.addEventListener("dragenter", (e) => {
+			    e.preventDefault();
+			    // this.dropActive = true;
+			}, false);
+			dropArea.addEventListener("dragover", (e) => {
+			    e.preventDefault();
+			    // this.dropActive = true;
+			}, false);
 			
 			//加载表情
 			getemoticon().then(res =>{
@@ -2068,6 +2147,7 @@
 										max-width: 200px;
 										width: 100%;
 										max-height: 200px;
+										cursor: pointer;
 									}
 								}
 								.emojiImage{
