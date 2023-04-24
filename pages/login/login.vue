@@ -39,6 +39,7 @@
 				let password = this.$md5(this.userPassword)
 				login(this.userName,password.toUpperCase()).then(res =>{
 					console.log(res)
+					Notify({ type: 'success', message: res.data.msg, className: 'MsgClass' });
 					if(res.data.code == 0){
 						localStorage.setItem('userToken',res.data.data.userToken)
 						localStorage.setItem('userType',res.data.data.userType)

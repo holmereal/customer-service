@@ -5,9 +5,9 @@
 				<view class="user_top">
 					<view class="left">
 						<image v-if="iconUrl == ''" src="../../static/Avatar.png" mode=""></image>
-						<image v-else :src="iconUrl" mode=""></image>
+						<image v-else :src="iconUrl" mode=" scaleToFill"></image>
 						<view class="text">
-							<h3>客服人员1号</h3>
+							<h3>{{alias}}</h3>
 							<p>账号ID：{{userId || ''}}</p>
 						</view>
 					</view>
@@ -110,9 +110,6 @@
 						</view>
 					</view>
 				</view>
-				<!-- <view class="add_userlist" @click="addGroupShow = true">
-					<span>+添加分组</span>
-				</view> -->
 				<view class="messageList_RightClick" v-if="UserListRightClickShow" id="RightClick_UserList">
 					<view class="cell" @click="messageListMark">
 						<span v-if="updateChatList.flagStar == 0">标记</span>
@@ -148,7 +145,8 @@
 						<view class="dialog_list" id="dialog_list">
 							<view class="dialog_cell" v-click-Chat="closeRightClick" @contextmenu.prevent="showSelectBox($event,item)" :class="userId == item.userId? 'myself':''" v-for="(item,index) in ChatMessageList">
 								<view class="name">
-									<image v-if="userId == item.userId" src="../../static/Avatar.png" mode=""></image>
+									<image v-if="userId == item.userId && iconUrl == ''" src="../../static/Avatar.png" mode="scaleToFill"></image>
+									<image v-if="userId == item.userId && iconUrl != ''" :src="iconUrl" mode="scaleToFill"></image>
 									<image v-if="userId != item.userId && CurrentUserInfo.iconURL == ''" src="../../static/Avatar.png" mode=""></image>
 									<image v-if="userId != item.userId && CurrentUserInfo.iconURL != ''" :src="CurrentUserInfo.iconURL" mode=""></image>
 									<p v-if="userId == item.userId">{{alias}}</p>
@@ -156,10 +154,13 @@
 									<span>{{item.ETime}}</span>
 								</view>
 								<view class="text" :class="item.messageType == 0? '':'emojiImage'">
-									<p v-if="item.messageType == 0">{{item.message}}</p>
+									<p v-if="item.messageType == 0" style="white-space: pre-wrap;" v-html="item.message">{{item.message}}</p>
 									<!-- <img v-if="item.messageType == 1 && item.emojiInfo" :src="item.emojiInfo.animURL" alt=""> -->
 									<svga v-if="item.messageType == 1 && item.emojiInfo" id="canvas1" :src="item.emojiInfo.animURL" />
 									<img class='imageInfo' :preview="targetId" v-if="item.messageType == 2 && item.imageInfo" :src="item.imageInfo.imageURL" alt="">
+								</view>
+								<view class="translateContent" v-if="item.translateMessage">
+									<p>{{item.translateMessage}}</p>
 								</view>
 							</view>
 							
@@ -194,7 +195,8 @@
 							<!-- <view class="inputbox_body" contenteditable="true" v-model="message">
 								
 							</view> -->
-							<textarea name="" id="" cols="30" rows="10" maxlength="50" id="drop_area" class="inputbox_body" @keyup.enter.exact="submit" @keydown.enter.exact="handleKeydown" v-model="message" placeholder="输入消息……"></textarea>
+							<textarea name="" cols="30" rows="10" maxlength="1000" id="drop_area" class="inputbox_body" @keydown.enter.exact="submit"
+								@keydown.ctrl.enter="addNewLine" @keydown.meta.enter="addNewLine" v-model="message" placeholder="输入消息……"></textarea>
 						</view>
 						<view class="enter">
 							<view class="translate" @click="TextTranslate()">
@@ -218,7 +220,7 @@
 						<view class="words_box">
 							<view class="words_list">
 								<view class="words_cell" v-for="item in PhrasesList" @click="PickPhrases(item)">
-									<p>{{item.qa}}</p>
+									<p style="white-space: pre-wrap;" v-html="item.qa">{{item.qa}}</p>
 									<image src="../../static/delete-icon.png" mode="aspectFill" @click.stop="DeletePhrases(item)"></image>
 								</view>
 							</view>
@@ -232,17 +234,17 @@
 		</view>
 		
 		<van-popup v-model="wordsShow" :close-on-click-overlay="false" class="findGrab" :style="{width:'430px',height:'auto',background: '#FFFFFF',
-		'border-radius': '10px'}">
+		'border-radius': '10px',overflow:'hidden'}">
 			<view class="addwords_box">
 				<view class="title_close">
 					<h3>添加常用语</h3>
-					<image src="../../static/close-icon.png" mode="aspectFill" @click="wordsShow = false"></image>
+					<image src="../../static/close-icon.png" mode="aspectFill" @click="wordsShow = false,Phrases = ''"></image>
 				</view>
 				<view class="addwords_input">
-					<textarea name="" id="" v-model="Phrases" cols="30" rows="10" maxlength="100" placeholder="输入常用语~"></textarea>
+					<textarea name="" id="addwords" v-model="Phrases" cols="30" rows="10" maxlength="1000" @keydown.ctrl.enter="newlinePhrases" @keydown.meta.enter="newlinePhrases" placeholder="输入常用语~"></textarea>
 				</view>
 				<view class="addwords_btn">
-					<view class="addwords_btn_quit" @click="wordsShow = false">
+					<view class="addwords_btn_quit" @click="wordsShow = false,Phrases = ''">
 						<span>退出</span>
 					</view>
 					<view class="addwords_btn_sure" :class="addwords_not? 'notclick':''" @click="addPhrases()">
@@ -252,29 +254,8 @@
 			</view>
 		</van-popup>
 		
-		<van-popup v-model="addGroupShow" :close-on-click-overlay="false" class="findGrab" :style="{width:'315px',height:'auto',background: '#FFFFFF',
-		'border-radius': '10px'}">
-			<view class="addwords_box">
-				<view class="title_close">
-					<h3>添加分组</h3>
-					<image src="../../static/close-icon.png" mode="aspectFill" @click="addGroupShow = false"></image>
-				</view>
-				<view class="addwords_input">
-					<input type="text" placeholder="金牌用户" maxlength="10">
-				</view>
-				<view class="addwords_btn">
-					<view class="addwords_btn_quit" @click="addGroupShow = false">
-						<span>退出</span>
-					</view>
-					<view class="addwords_btn_sure" @click="addGroup()">
-						<span>确定</span>
-					</view>
-				</view>
-			</view>
-		</van-popup>
-		
 		<van-popup v-model="RemarkShow" :close-on-click-overlay="false" class="findGrab" :style="{width:'385px',height:'auto',background: '#FFFFFF',
-		'border-radius': '10px'}">
+		'border-radius': '10px',overflow:'hidden'}">
 			<view class="addwords_box">
 				<view class="title_close">
 					<h3>备注</h3>
@@ -318,7 +299,6 @@
 				userTabNum: 0,
 				lineNum: 0,
 				wordsShow: false,
-				addGroupShow: false,
 				RemarkShow: false,
 				RemarkName: '',		//备注名称
 				userId: localStorage.getItem('userId') || '',
@@ -349,8 +329,8 @@
 				UserListRightClickShow: false,
 				updateChatList: '',			//右键菜单消息内容
 				
-				wsUrl: '://cc.365-farm.com/visit', // ws地址
-				// wsUrl: '://192.168.2.121:8899/visit',
+				// wsUrl: '://cc.365-farm.com/visit', // 尼日基建 ws地址
+				wsUrl: '://cc.globalfarmingweb.com/visit', // 伊拉克粮食
 				websock: null, // ws实例
 				timeoutObj:undefined,
 				serverTimeoutObj:undefined,
@@ -360,7 +340,7 @@
 				Remark_not: false,
 			}
 		},
-		onLoad() {
+		created() {
 			if (typeof (WebSocket) === 'undefined')
 			  return console.log('您的浏览器不支持websocket')
 			
@@ -468,6 +448,18 @@
 			initWebSocket() {
 				this.connectSocket()
 				
+				this.websock.onopen = (event) => {
+					console.log('WebSocket 连接已建立');
+					this.longstart();   // 成功建立连接后，创建心跳检测
+					if (this.websock.readyState === 1){
+						this.login();
+					}else{
+						setTimeout(() => { 
+							this.login()
+						}, 1000)
+					}
+				};
+				
 				this.websock.onmessage = async(msg) => {
 					console.log('心跳重置')
 				    this.longstart();
@@ -493,6 +485,7 @@
 									console.log("testdata：", testdata);
 									
 									if(testdata.errCode == 0){
+										clearTimeout(this.serverTimeoutObj)
 										this.getChatList()
 									}else{
 										uni.reLaunch({
@@ -739,49 +732,45 @@
 				}
 				var url = ''
 				url = protocol + this.wsUrl
-				this.websock = new WebSocket(url)
-				this.websock.onopen = (event) => {
-					console.log('WebSocket 连接已建立');
-
-					this.websocketonopen()
-				};
+				this.websock = this.createWebSocket(url)
 				// 监听连接失败
-				this.websock.onerror = this.websocketonerror()
-				// 监听连接关闭
-				this.websock.onclose = this.websocketclose()
-			},
-			websocketonopen() {
-				// 连接建立之后执行send方法发送数据
-				console.log('已经连通了websocket')
-				console.log(this.websock.readyState)
-				if (this.websock.readyState === 1){
-					this.login();
-				}else{
-					setTimeout(() => { 
-						this.login()
-					}, 1000)
+				this.websock.onerror = () => {
+					// 连接建立失败重连
+					console.log('websocket连接断开')
+					this.connectSocket()
 				}
-				this.longstart();   // 成功建立连接后，创建心跳检测
+				// 监听连接关闭
+				this.websock.onclose = () => {
+					console.log('WebSocket连接已断开');
+					if(!this.lockReconnect){
+						this.reconnectWebSocket();
+					}
+				}
+			},
+			// 创建websocket对象
+			createWebSocket(url) {
+				console.log(url)
+			     try{
+			         if(window.WebSocket)
+			             return new WebSocket(url);
+			         if(window.MozWebSocket)
+			             return new MozWebSocket(url);
+			     } catch(e) {
+			     }
+			     return false;
 			},
 			websocketsend(Data) {
 			  // 数据发送
 			  this.websock.send(Data)
 			},
-			websocketonerror() {
-			  // 连接建立失败重连
-			  console.log('websocket连接断开')
-			  // this.initWebSocket()
-			},
-			websocketclose(e) {
-			  // 关闭
-			  console.log('断开连接', e)
-			  if(this.lockReconnect){
-				this.initWebSocket()
-			  }
+			reconnectWebSocket() {
+			    this.serverTimeoutObj = setTimeout(() => {
+			      console.log('重新连接WebSocket');
+			      this.initWebSocket();
+			    }, 5000);
 			},
 			longstart(){
 				clearInterval(this.timeoutObj)
-				clearTimeout(this.serverTimeoutObj)
 				
 				this.timeoutObj = setInterval(()=>{
 					console.log('重置监测心跳')
@@ -800,11 +789,6 @@
 					messageCode = new Uint8Array(messageCode)
 					
 					this.websocketsend(messageCode)
-					this.serverTimeoutObj = setTimeout(() =>{
-						this.lockReconnect = true
-						console.log("后台挂掉，没有心跳了....");
-						this.websock.close();
-					},2000)
 				},15000)
 			},
 			getUint8Array(len, setNum) {
@@ -910,6 +894,10 @@
 				localStorage.removeItem('userId')
 				localStorage.removeItem('alias')
 				localStorage.removeItem('iconUrl')
+				this.lockReconnect = true
+				clearInterval(this.timeoutObj)
+				clearTimeout(this.serverTimeoutObj)
+				this.websock.close();
 				
 				uni.reLaunch({
 					url: '/pages/login/login'
@@ -1029,44 +1017,68 @@
 				
 				this.websocketsend(messageCode)
 			},
-			submit() {
+			submit(e) {
+				if (window.event) {
+					window.event.returnValue = false
+				} else {
+					e.preventDefault()
+				}
+				
 			    this.SendMessages()
 			},
-			handleKeydown(event) {
-			    event.preventDefault();
-			    return false;
+			addNewLine(e) {
+			  // 1.获取光标位置
+			  // const ele = e.target
+			  // const cursorIndex = ele.selectionStart
+			  
+			  const element = document.activeElement;
+			  const cursorPosition = element.selectionStart;
+		 
+			  // 2.光标后加入换行符
+			  let temp_text = this.message.split('')
+			  temp_text.splice(cursorPosition, 0, '\n')
+			  this.message = temp_text.join('')
+		 
+			  // 3.移动光标
+			  this.$nextTick(() => {
+				element.selectionStart = element.selectionEnd = cursorPosition + 1
+			  })
 			},
 			SendMessages(){
-				var channel = this.getInt32Bytes(10002)
-				var child = this.getInt16Bytes(1)
-				var userId = this.longToByteArray(this.userId)
-				var attachId = this.longToByteArray(0)
-				channel = Array.from(channel)
-				child = Array.from(child)
-				userId = Array.from(userId)
-				attachId = Array.from(attachId)
-				
-				let time = new Date().getTime()
-				//protobuf转码
-				let actions = {
-					sort: 1,
-					targetId: this.CurrentUserInfo.userId,
-					groupId: this.groupId,
-					message: this.message,
-					messageId: time + this.userId,
-					messageType: this.messageType = 0,
+				if(this.message == "" || this.message == null){
+					Notify({ type: 'danger', message: '输入内容不能为空!', className: 'MsgClass' });
+				}else{
+					var channel = this.getInt32Bytes(10002)
+					var child = this.getInt16Bytes(1)
+					var userId = this.longToByteArray(this.userId)
+					var attachId = this.longToByteArray(0)
+					channel = Array.from(channel)
+					child = Array.from(child)
+					userId = Array.from(userId)
+					attachId = Array.from(attachId)
+					
+					let time = new Date().getTime()
+					//protobuf转码
+					let actions = {
+						sort: 1,
+						targetId: this.CurrentUserInfo.userId,
+						groupId: this.groupId,
+						message: this.message,
+						messageId: time + this.userId,
+						messageType: this.messageType = 0,
+					}
+					let testobj = protoRoot2.lookup("C100021c2s").create(actions);
+					console.log("testobj:", testobj);
+					let testObjBuffer = protoRoot2.lookup("C100021c2s").encode(testobj).finish(); //encode数据
+					console.log("testObjBuffer:", testObjBuffer);
+					testObjBuffer = Array.from(testObjBuffer)
+					
+					var messageCode = []
+					messageCode.push(...channel,...child,...userId,...attachId,...testObjBuffer)
+					messageCode = new Uint8Array(messageCode)
+					
+					this.websocketsend(messageCode)
 				}
-				let testobj = protoRoot2.lookup("C100021c2s").create(actions);
-				console.log("testobj:", testobj);
-				let testObjBuffer = protoRoot2.lookup("C100021c2s").encode(testobj).finish(); //encode数据
-				console.log("testObjBuffer:", testObjBuffer);
-				testObjBuffer = Array.from(testObjBuffer)
-				
-				var messageCode = []
-				messageCode.push(...channel,...child,...userId,...attachId,...testObjBuffer)
-				messageCode = new Uint8Array(messageCode)
-				
-				this.websocketsend(messageCode)
 			},
 			searchMessage(event){
 				this.filterName = event.target.value
@@ -1086,12 +1098,28 @@
 					}
 				})
 			},
+			newlinePhrases(){
+				const element = document.activeElement;
+				const cursorPosition = element.selectionStart;
+						 
+				// 2.光标后加入换行符
+				let temp_text = this.Phrases.split('')
+				temp_text.splice(cursorPosition, 0, '\n')
+				this.Phrases = temp_text.join('')
+						 
+				// 3.移动光标
+				this.$nextTick(() => {
+					element.selectionStart = element.selectionEnd = cursorPosition + 1
+				})
+			},
 			addPhrases(){
 				if(/^\s*$/.test(this.Phrases)){
 					Notify({ type: 'danger', message: '常用语不能为空', className: 'MsgClass' });
 				}else{
 					this.addwords_not = true
-					insertqa(this.Phrases).then(res =>{
+					const encodedParam = encodeURIComponent(this.Phrases);
+					
+					insertqa(encodedParam).then(res =>{
 						if(res.data.code == 0){
 							this.wordsShow = false
 							this.getPhrases()
@@ -1366,7 +1394,7 @@
 						this.ChatMessageList.forEach((e,index) =>{
 							if(e.messageId == this.RightClick_me.messageId){
 								console.log(index)
-								this.$set(e,'message',res.data.data)
+								this.$set(e,'translateMessage',res.data.data)
 							}
 						})
 					}else{
@@ -1487,6 +1515,7 @@
 			    formData.append('file', file)
 			    let imgUrl = baseURL + '/files/uploadFile'
 			    console.log(formData.get('file'));
+				Notify({ type: 'danger', message: '已发送,等待上传', className: 'MsgClass' });
 			    let config = {
 			    	headers: {
 			    		"Content-Type": "multipart/form-data",
@@ -1541,6 +1570,11 @@
 			}
 		},
 		mounted() {
+			this.websock.onerror = () => {
+			    console.log('WebSocket连接出现错误');
+			    this.reconnectWebSocket();
+			};
+			
 			var ele = document.getElementById("dialog_list");
 			//判断元素是否出现了滚动条
 			if(ele.scrollHeight > ele.clientHeight) {
@@ -1584,15 +1618,11 @@
 			this.getPhrases()
 		},
 		// 组件销毁时，关闭与服务器的连接
-		destroyed () {
-			this.lockReconnect = false
-			// 组件销毁时，关闭与服务器的连接
-			if (this.socketio) {
-				this.socketio.close() // 离开路由之后断开websocket连接
-			}
+		beforeDestroy() {
+			this.lockReconnect = true
 			clearInterval(this.timeoutObj)
-			clearTimeout(this.serverTimeoutObj)
-		},
+			this.websock.close();
+		}
 	}
 </script>
 
@@ -1979,24 +2009,6 @@
 						}
 					}
 				}
-				.add_userlist{
-					width: 147px;
-					height: 34px;
-					background: #4E8DFF;
-					position: fixed;
-					left: 94px;
-					bottom: 20px;
-					display: flex;
-					justify-content: center;
-					align-items: center;
-					cursor: pointer;
-					span{
-						font-size: 14px;
-						font-family: Microsoft YaHei UI;
-						font-weight: 400;
-						color: #FFFFFF;
-					}
-				}
 			}
 		}
 		.main{
@@ -2137,6 +2149,7 @@
 										font-weight: 400;
 										color: #333333;
 										line-height: 24px;
+										word-break: break-all;
 									}
 									img{
 										max-width: 100px;
@@ -2153,6 +2166,19 @@
 								.emojiImage{
 									background: transparent;
 									padding: 0;
+								}
+								.translateContent{
+									background: #ebe3e3;
+									border-radius: 10px;
+									padding: 24px 28px;
+									margin: 17px 93px 0 6px;
+									p{
+										font-size: 14px;
+										font-family: Source Han Sans CN;
+										font-weight: 400;
+										color: #333333;
+										line-height: 24px;
+									}
 								}
 							}
 							.myself{
@@ -2320,7 +2346,7 @@
 						background: #FFFFFF;
 						margin-top: 1px;
 						.words_box{
-							max-height: 400px;
+							max-height: 500px;
 							background: #F5F9FC;
 							margin: 12px 15px 0;
 							padding: 20px 12px;
@@ -2377,6 +2403,7 @@
 										font-weight: 400;
 										color: #333333;
 										line-height: 19px;
+										word-break: break-all;
 									}
 									image{
 										width: 18px;
